@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.models import Candidate, Hall, SeatPlan
 from app.services.seat_engine import halves_to_dict, place_halves
-from app.services.page_rollup import mix_stats, mix_violations
 router = APIRouter(prefix="/seating", tags=["seating"])
 
 
@@ -56,10 +55,13 @@ def latest(hall_id: int = 1, db: Session = Depends(get_db)):
 @router.get("/violations")
 def violations(hall_id: int = 1, db: Session = Depends(get_db)):
     data = latest(hall_id=hall_id, db=db)
-    return {"hall_id": hall_id, **mix_violations(data)}
+    return {"hall_id": hall_id,
+            "violations": data["violations"],
+            "unplaced": data["unplaced"]}
 
 
 @router.get("/stats")
 def stats(hall_id: int = 1, db: Session = Depends(get_db)):
     data = latest(hall_id=hall_id, db=db)
-    return {"hall_id": hall_id, **mix_stats(data)}
+    # 左账/右账人数直接取自两本账的统计，不经过任何页侧重算
+    return {"hall_id": hall_id, "boundary_col": data["boundary_col"], **data["stats"]}

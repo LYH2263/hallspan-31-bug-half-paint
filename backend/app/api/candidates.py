@@ -31,9 +31,13 @@ def update_candidate(candidate_id: int, body: CandidateUpdate, db: Session = Dep
     if side not in (None, "L", "R"):
         raise HTTPException(400, "左右标记非法")
     cand.side = side
-    db.commit(); db.refresh(cand)
-    # 改标记后重提交：两本账与最新方案同成功或同失败，历史方案不回刷
+    db.flush()  # 同事务内让重排座读到新标记；失败随事务一起回滚
+    # 改标记后重提交：左右标记与两本账、最新方案同成功或同失败。
+    # 失败连标记一起回滚，历史方案行不回刷、不改字。
     data, errors = execute_seating(db, cand.hall_id)
+    if errors:
+        db.rollback()
+        cand = db.get(Candidate, candidate_id)
     out = candidate_dict(cand)
     out["seating"] = {"ok": not errors, "errors": errors,
                       "plan_id": data["id"] if data else None}

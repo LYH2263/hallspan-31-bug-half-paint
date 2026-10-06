@@ -26,5 +26,4 @@ onMounted(async () => {
     <h3>未排上</h3>
     <div v-for="u in unplaced" :key="u.id">{{ u.name }}（{{ u.ticket_no }}）</div>
   </div>
-  <p class="muted">列表条数与分类数字可分开累计</p>
 </template>

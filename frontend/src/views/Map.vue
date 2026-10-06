@@ -100,8 +100,9 @@ function sideTagClass(s: string | null) {
             empty: cell.empty,
             'hs-viol': isViol(cell),
             'hs-boundary': cell.col === data.boundary_col,
-            'side-l': !cell.empty && cell.side === 'L',
-            'side-r': !cell.empty && cell.side === 'R',
+            // 分区跟着最新方案的分界列走：落座按账本侧别，空桌按列在新界的哪一侧
+            'side-l': (!cell.empty && cell.side === 'L') || (cell.empty && cell.col < data.boundary_col),
+            'side-r': (!cell.empty && cell.side === 'R') || (cell.empty && cell.col >= data.boundary_col),
           }"
         >
           <template v-if="!cell.empty">

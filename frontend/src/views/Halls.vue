@@ -17,10 +17,11 @@ async function save(r: any) {
       body: JSON.stringify({ boundary_col: Number(edits.value[r.id]) }),
     })
     r.boundary_col = res.boundary_col
+    edits.value[r.id] = res.boundary_col  // 成败都以服务端为准：失败时连分界一起撤
     if (res.seating?.ok) {
       notices.value = [`分界列已保存为 ${res.boundary_col}，两本账与最新方案已更新`]
     } else {
-      // 重提交失败：分界列已保存，但两本账与最新方案同失败、不增方案
+      // 重提交失败：分界列与两本账、最新方案一起撤回，不增方案
       errors.value = res.seating?.errors?.length ? res.seating.errors : ['排座失败']
     }
   } catch (e) {

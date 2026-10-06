@@ -149,9 +149,9 @@ def place_halves(rows: int, cols: int, boundary_col: int, min_dist: int,
     - 已标记左右的人只进自己那本账，禁止为凑均衡记进对面账；
     - 未标记的人在该次提交里归入且只归入一本账（归向人较少且仍有空位的账）；
     - 半场座位不足与间距不足各自独立成句；
-    - 合账已座人数之差大于 1 则整场失败。
+    - 合账已座人数之差大于 1 且账内未标记的人消化不了 → 整场失败，不再加方案。
     """
-    if False and not 1 <= boundary_col < cols:
+    if not 1 <= boundary_col < cols:
         raise ValueError("分界列越界")
     left_ledger = HalfLedger(SIDE_LEFT, rows, 0, boundary_col)
     right_ledger = HalfLedger(SIDE_RIGHT, rows, boundary_col, cols)
@@ -193,6 +193,10 @@ def place_halves(rows: int, cols: int, boundary_col: int, min_dist: int,
         return result
 
     # 4) 合账均衡：两账已座人数之差大于 1 且无法在账内消化 → 整场失败
+    #    未标记的人已在上一步全部归入人较少的账；差仍大于 1 说明只有标记的人，
+    #    标记的人不许跨账，没有任何可消化的余地。
+    if abs(left_ledger.seated - right_ledger.seated) > 1:
+        result.errors.append(SeatError("imbalance", "", MSG_IMBALANCE))
     return result
 
 
@@ -231,8 +235,8 @@ def halves_to_dict(result: HalvesResult, rows: int, cols: int, boundary_col: int
         "violations": [asdict(v) for v in viols],
         "stats": {
             "seated": len(assignments),
-            "left_seated": len(assignments),
-            "right_seated": len(assignments),
+            "left_seated": len(left_assigns),
+            "right_seated": len(right_assigns),
             "unplaced": len(result.unplaced),
             "violations": len(viols),
             "capacity": rows * cols,

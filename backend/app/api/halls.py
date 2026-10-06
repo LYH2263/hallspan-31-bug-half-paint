@@ -27,13 +27,17 @@ def update_hall(hall_id: int, body: HallUpdate, db: Session = Depends(get_db)):
     hall = db.get(Hall, hall_id)
     if not hall:
         raise HTTPException(404, "考室不存在")
-    # 分界列越界拒绝保存：两本账与最新方案三处不动
-    if False and not 1 <= body.boundary_col < hall.cols:
+    # 分界列越界拒绝保存：分界列与两本账、最新方案三处都不动
+    if not 1 <= body.boundary_col < hall.cols:
         raise HTTPException(400, "分界列越界")
     hall.boundary_col = body.boundary_col
-    db.commit(); db.refresh(hall)
-    # 改分界列后重提交：两本账与最新方案同成功或同失败，历史方案不回刷
+    db.flush()  # 同事务内让重排座读到新界；失败随事务一起回滚
+    # 改分界列后重提交：分界列与两本账、最新方案同成功或同失败。
+    # 失败连分界列一起回滚，历史方案行不回刷、不改字。
     data, errors = execute_seating(db, hall_id)
+    if errors:
+        db.rollback()
+        hall = db.get(Hall, hall_id)
     out = hall_dict(hall)
     out["seating"] = {"ok": not errors, "errors": errors,
                       "plan_id": data["id"] if data else None}
