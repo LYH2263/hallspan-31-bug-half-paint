@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
@@ -34,3 +34,6 @@ class SeatPlan(Base):
     hall_id: Mapped[int] = mapped_column(ForeignKey("halls.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     result_json: Mapped[str] = mapped_column(Text, default="{}")
+    # pinned=True：正式提交（POST /seating/run）落库的历史方案，落盘后不回刷、不撤；
+    # pinned=False：改分界列/改左右标记触发的重提交试行方案，随下次重提交更换，失败即撤。
+    pinned: Mapped[bool] = mapped_column(Boolean, default=False)

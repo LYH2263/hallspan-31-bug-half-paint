@@ -28,7 +28,7 @@ def update_hall(hall_id: int, body: HallUpdate, db: Session = Depends(get_db)):
     if not hall:
         raise HTTPException(404, "考室不存在")
     # 分界列越界拒绝保存：两本账与最新方案三处不动
-    if False and not 1 <= body.boundary_col < hall.cols:
+    if not 1 <= body.boundary_col < hall.cols:
         raise HTTPException(400, "分界列越界")
     hall.boundary_col = body.boundary_col
     db.commit(); db.refresh(hall)

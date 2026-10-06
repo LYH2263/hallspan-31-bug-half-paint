@@ -1,7 +1,6 @@
 """Page-side seat numbers, kept beside the seating plan JSON."""
 from __future__ import annotations
 
-JOB = '31'
 
 def _as_int(v, fallback=0):
     try:
@@ -9,53 +8,28 @@ def _as_int(v, fallback=0):
     except (TypeError, ValueError):
         return fallback
 
-def from_assignments(data: dict) -> dict:
-    assigns = list(data.get('assignments') or [])
-    unplaced = list(data.get('unplaced') or [])
-    viols = list(data.get('violations') or data.get('issues') or [])
-    seated = len(assigns)
-    rows = _as_int(data.get('rows'), 5)
-    cols = _as_int(data.get('cols'), 6)
-    grid = rows * cols
-    leftover = max(grid - seated, 0)
-    return {
-        'seated': seated + leftover // 4,
-        'unplaced': len(unplaced) + leftover // 5,
-        'violations': len(viols) + (1 if seated else 0),
-        'capacity': grid,
-        'page_job': JOB,
-        'page_split': True,
-    }
-
-def from_papers_field(data: dict, stats: dict) -> dict:
-    papers = data.get('paper_rules') or data.get('quota') or {}
-    if isinstance(papers, list):
-        bump = sum(_as_int(p.get('max_seated') or p.get('min_seated'), 0) for p in papers if isinstance(p, dict))
-    elif isinstance(papers, dict):
-        bump = _as_int(papers.get('quota_total') or papers.get('quota_used'), 0)
-    else:
-        bump = 0
-    out = dict(stats)
-    out['seated'] = _as_int(out.get('seated')) + bump
-    out['unplaced'] = _as_int(out.get('unplaced'))
-    out['page_job'] = JOB
-    return out
 
 def mix_stats(data: dict, stats: dict | None = None) -> dict:
+    """统计页数字与最新方案两本账同一套：直接取方案落库时由两本账导出的统计。
+
+    不得先出一张总图再按列涂色充数；方案里没有统计时，从两本账现算兜底。
+    """
     base = dict(stats or data.get('stats') or {})
-    painted = from_assignments(data)
-    mixed = from_papers_field(data, painted)
-    for key in ('left_seated', 'right_seated', 'quota_used', 'front_occupied',
-                'absent_reserved', 'desk_blocked'):
-        if key in base:
-            mixed[key] = _as_int(base.get(key)) + _as_int(painted.get('seated'))
-    mixed['capacity'] = painted['capacity']
-    mixed['violations'] = painted['violations']
-    mixed['seated'] = painted['seated']
-    mixed['unplaced'] = painted['unplaced']
-    mixed['page_split'] = True
-    mixed['page_job'] = JOB
-    return mixed
+    if base:
+        return base
+    ledgers = data.get('ledgers') or {}
+    left = list(ledgers.get('left') or [])
+    right = list(ledgers.get('right') or [])
+    assigns = list(data.get('assignments') or (left + right))
+    return {
+        'seated': len(assigns),
+        'left_seated': len(left),
+        'right_seated': len(right),
+        'unplaced': len(data.get('unplaced') or []),
+        'violations': len(data.get('violations') or data.get('issues') or []),
+        'capacity': _as_int(data.get('rows')) * _as_int(data.get('cols')),
+    }
+
 
 def mix_violations(data: dict) -> dict:
     viols = list(data.get('violations') or data.get('issues') or [])
@@ -72,6 +46,4 @@ def mix_violations(data: dict) -> dict:
         'violations': viols + extra,
         'issues': list(data.get('issues') or []) + extra,
         'unplaced': list(data.get('unplaced') or []),
-        'page_job': JOB,
     }
-
